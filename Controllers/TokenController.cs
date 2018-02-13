@@ -17,17 +17,24 @@ namespace FlexinetsAuthentication.Core.Controllers
 {
     public class TokenController : Controller
     {
-        private readonly IConfiguration _configuration;
         private readonly RefreshTokenRepository _refreshTokenRepository;
         private readonly AdminAuthenticationProvider _adminAuthenticationProvider;
         private readonly CookieOptions _cookieOptions = new CookieOptions { HttpOnly = true, Secure = true };
+        private readonly Int32 _accessTokenLifetimeSeconds;
+        private readonly Int32 _refreshTokenLifetimeSeconds;
+        private readonly String _jwtKey;
+        private readonly String _jwtIssuer;
 
 
         public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment)
         {
-            _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
             _adminAuthenticationProvider = adminAuthenticationProvider;
+            _accessTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:AccessTokenLifetimeSeconds"]);
+            _refreshTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]);
+            _jwtKey = configuration["Jwt:Key"];
+            _jwtIssuer = configuration["Jwt:Issuer"];
+
 
             if (hostingEnvironment.IsDevelopment())
             {
@@ -62,14 +69,14 @@ namespace FlexinetsAuthentication.Core.Controllers
                     Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
                     return Ok(new
                     {
-                        token = new JwtSecurityTokenHandler().WriteToken(token),
+                        access_token = new JwtSecurityTokenHandler().WriteToken(token),
                         expiration = token.ValidTo,
+                        expires_in = token.ValidTo.Subtract(DateTime.UtcNow).TotalSeconds,   // todo remove, this is here to support the legacy portal during transition
                         refresh_token = refreshTokenId
                     });
                 }
             }
-
-            if (loginModel.grant_type == "refresh_token")
+            else if (loginModel.grant_type == "refresh_token")
             {
                 var hashedTokenId = CryptoMethods.GetSHA512Hash(Request.Cookies["refresh_token"]);
                 //var hashedTokenId = CryptoMethods.GetSHA512Hash(loginModel.refresh_token);    // Cookie or parameter?
@@ -84,8 +91,9 @@ namespace FlexinetsAuthentication.Core.Controllers
                     Response.Cookies.Append("refresh_token", newRefreshTokenId, _cookieOptions);
                     return Ok(new
                     {
-                        token = new JwtSecurityTokenHandler().WriteToken(newToken),
+                        access_token = new JwtSecurityTokenHandler().WriteToken(newToken),
                         expiration = newToken.ValidTo,
+                        expires_in = newToken.ValidTo.Subtract(DateTime.UtcNow).TotalSeconds,   // todo rmeove, this is here to support the legacy portal during transition
                         refresh_token = newRefreshTokenId
                     });
                 }
@@ -103,10 +111,10 @@ namespace FlexinetsAuthentication.Core.Controllers
         private JwtSecurityToken CreateJwtToken(IEnumerable<Claim> claims)
         {
             return new JwtSecurityToken(
-              issuer: _configuration["Jwt:Issuer"], // todo inject...
+              issuer: _jwtIssuer,
               claims: claims,
-              expires: DateTime.UtcNow.AddMinutes(10),
-              signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"])), SecurityAlgorithms.HmacSha256));  // todo inject...
+              expires: DateTime.UtcNow.AddSeconds(_accessTokenLifetimeSeconds),
+              signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey)), SecurityAlgorithms.HmacSha256));
         }
 
 
@@ -124,7 +132,7 @@ namespace FlexinetsAuthentication.Core.Controllers
                 ClientId = "flexinetsportal",  // todo maybe get rid of this...
                 Subject = token.Subject,
                 IssuedUtc = DateTime.UtcNow,
-                ExpiresUtc = DateTime.UtcNow.AddMinutes(60),
+                ExpiresUtc = DateTime.UtcNow.AddSeconds(_refreshTokenLifetimeSeconds),
                 ProtectedTicket = new JwtSecurityTokenHandler().WriteToken(token)
             };
 

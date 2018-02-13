@@ -77,7 +77,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         //[HttpPost("api/account/changepassword/")]
         //public async Task<IActionResult> ChangePassword([FromBody]ChangePasswordModel model)
         //{
-        //    var userid = User.Identity.GetUserId<Int32>();
+        //    var userid = Convert.ToInt32(User.Identity.Name);
         //    var admin = await _adminRepository.GetAdminAsync(User.Identity.GetUserId<Int32>(), false);
         //    if (await _adminAuthenticationProvider.AuthenticateAsync(admin.Username ?? admin.EmailAddress, model.OldPassword).GetValueOrDefault(0) == userid)
         //    {

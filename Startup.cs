@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Serialization;
 
 namespace FlexinetsAuthentication.Core
 {
@@ -29,6 +30,7 @@ namespace FlexinetsAuthentication.Core
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddCors();
             services.AddTransient<RefreshTokenRepository>();
             services.AddTransient<AdminAuthenticationProvider>();
             services.AddDbContext<FlexinetsContext>(options => options.UseSqlServer(Configuration.GetConnectionString("FlexinetsContext")));
@@ -47,7 +49,7 @@ namespace FlexinetsAuthentication.Core
                 };
             });
 
-            services.AddMvc();
+            services.AddMvc().AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -58,6 +60,7 @@ namespace FlexinetsAuthentication.Core
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseCors(o => o.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod().AllowCredentials());
             app.UseAuthentication();
             app.UseMvc();
         }
