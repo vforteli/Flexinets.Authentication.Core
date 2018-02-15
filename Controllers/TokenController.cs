@@ -24,6 +24,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         private readonly Int32 _refreshTokenLifetimeSeconds;
         private readonly String _jwtKey;
         private readonly String _jwtIssuer;
+        private readonly String _jwtAudience;
 
 
         public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment)
@@ -34,6 +35,7 @@ namespace FlexinetsAuthentication.Core.Controllers
             _refreshTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]);
             _jwtKey = configuration["Jwt:Key"];
             _jwtIssuer = configuration["Jwt:Issuer"];
+            _jwtAudience = configuration["Jwt:Audience"];
 
 
             if (hostingEnvironment.IsDevelopment())
@@ -111,6 +113,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         private JwtSecurityToken CreateJwtToken(IEnumerable<Claim> claims)
         {
             return new JwtSecurityToken(
+              audience: _jwtAudience,
               issuer: _jwtIssuer,
               claims: claims,
               expires: DateTime.UtcNow.AddSeconds(_accessTokenLifetimeSeconds),
