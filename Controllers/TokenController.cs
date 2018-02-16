@@ -94,6 +94,21 @@ namespace FlexinetsAuthentication.Core.Controllers
         }
 
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            if (Request.Cookies.ContainsKey("refresh_token"))
+            {
+                var hashedTokenId = CryptoMethods.GetSHA512Hash(Request.Cookies["refresh_token"]);
+                await _refreshTokenRepository.RemoveTokenAsync(hashedTokenId);
+                Response.Cookies.Append("refresh_token", "", new CookieOptions { Expires = DateTime.UtcNow.AddYears(-1) });
+            }
+            return Ok(true);
+        }
+
+
+
+
         /// <summary>
         /// Get the token response and set refresh token cookie
         /// </summary>
@@ -133,7 +148,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// </summary>
         /// <param name="subject"></param>
         /// <returns></returns>
-        private async Task<(String refreshTokenId, DateTime expiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
+        private async Task<(String refreshTokenId, DateTime refreshTokenExpiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
         {
             var refreshTokenId = Guid.NewGuid().ToString("n");
             var refreshToken = new RefreshTokenModel
