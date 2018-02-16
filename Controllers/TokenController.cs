@@ -71,13 +71,7 @@ namespace FlexinetsAuthentication.Core.Controllers
                     var jwtToken = CreateJwtToken(claims);
                     var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(jwtToken);
 
-                    Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
-                    return Ok(new
-                    {
-                        access_token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
-                        //refresh_token = refreshTokenId, // return this if the client cant handle cookies
-                        refresh_token_expires = new DateTimeOffset(expiresUtc).ToUnixTimeSeconds()
-                    });
+                    return GetResponse(refreshTokenId, jwtToken, expiresUtc);
                 }
             }
             else if (loginModel.grant_type == "refresh_token")
@@ -92,17 +86,29 @@ namespace FlexinetsAuthentication.Core.Controllers
                     await _refreshTokenRepository.RemoveTokenAsync(hashedTokenId);
                     var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
 
-                    Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
-                    return Ok(new
-                    {
-                        access_token = new JwtSecurityTokenHandler().WriteToken(newJwtToken),
-                        //refresh_token = refreshTokenId,   // return this if the client cant handle cookies
-                        refresh_token_expires = new DateTimeOffset(expiresUtc).ToUnixTimeSeconds()
-                    });
+                    return GetResponse(refreshTokenId, newJwtToken, expiresUtc);
                 }
             }
 
             return BadRequest(new { error = "invalid_grant" });
+        }
+
+
+        /// <summary>
+        /// Get the token response and set refresh token cookie
+        /// </summary>
+        /// <param name="refreshTokenId"></param>
+        /// <param name="jwtToken"></param>
+        /// <param name="refreshTokenExpiresUtc"></param>
+        /// <returns></returns>
+        private OkObjectResult GetResponse(String refreshTokenId, JwtSecurityToken jwtToken, DateTime refreshTokenExpiresUtc)
+        {
+            Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);   // much side effects such cookie
+            return Ok(new
+            {
+                access_token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                refresh_token_expires = new DateTimeOffset(refreshTokenExpiresUtc).ToUnixTimeSeconds()
+            });
         }
 
 
