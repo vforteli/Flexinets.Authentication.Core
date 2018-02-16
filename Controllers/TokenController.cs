@@ -61,42 +61,43 @@ namespace FlexinetsAuthentication.Core.Controllers
                     var claims = new List<Claim>
                     {
                         new Claim(JwtRegisteredClaimNames.Sub, admin.AdminId.ToString()),
-                        new Claim(ClaimTypes.Name, admin.AdminId.ToString())
+                        new Claim(ClaimTypes.Name, admin.AdminId.ToString()),
+                        new Claim(ClaimTypes.Email, admin.Email),
+                        new Claim(ClaimTypes.GivenName, admin.Firstname),
+                        new Claim(ClaimTypes.Surname, admin.Lastname)
                     };
                     claims.AddRange(admin.Roles.Select(o => new Claim(ClaimTypes.Role, ((RoleTypes)o.RoleId).ToString())));
 
-                    var token = CreateJwtToken(claims);
-                    var refreshTokenId = await CreateRefreshTokenAsync(token);
+                    var jwtToken = CreateJwtToken(claims);
+                    var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(jwtToken);
 
                     Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
                     return Ok(new
                     {
-                        access_token = new JwtSecurityTokenHandler().WriteToken(token),
-                        expiration = token.ValidTo,
-                        expires_in = token.ValidTo.Subtract(DateTime.UtcNow).TotalSeconds,   // todo remove, this is here to support the legacy portal during transition
-                        refresh_token = refreshTokenId
+                        access_token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                        //refresh_token = refreshTokenId, // return this if the client cant handle cookies
+                        refresh_token_expires = new DateTimeOffset(expiresUtc).ToUnixTimeSeconds()
                     });
                 }
             }
             else if (loginModel.grant_type == "refresh_token")
             {
                 var hashedTokenId = CryptoMethods.GetSHA512Hash(Request.Cookies["refresh_token"]);
-                //var hashedTokenId = CryptoMethods.GetSHA512Hash(loginModel.refresh_token);    // Cookie or parameter?
+                //var hashedTokenId = CryptoMethods.GetSHA512Hash(loginModel.refresh_token);    // Cookie or header?
                 var refreshToken = await _refreshTokenRepository.GetTokenAsync(hashedTokenId);
                 if (refreshToken != null)
                 {
-                    var oldToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
-                    var newToken = CreateJwtToken(oldToken.Claims);
+                    var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
+                    var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
                     await _refreshTokenRepository.RemoveTokenAsync(hashedTokenId);
-                    var newRefreshTokenId = await CreateRefreshTokenAsync(newToken);
+                    var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
 
-                    Response.Cookies.Append("refresh_token", newRefreshTokenId, _cookieOptions);
+                    Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
                     return Ok(new
                     {
-                        access_token = new JwtSecurityTokenHandler().WriteToken(newToken),
-                        expiration = newToken.ValidTo,
-                        expires_in = newToken.ValidTo.Subtract(DateTime.UtcNow).TotalSeconds,   // todo rmeove, this is here to support the legacy portal during transition
-                        refresh_token = newRefreshTokenId
+                        access_token = new JwtSecurityTokenHandler().WriteToken(newJwtToken),
+                        //refresh_token = refreshTokenId,   // return this if the client cant handle cookies
+                        refresh_token_expires = new DateTimeOffset(expiresUtc).ToUnixTimeSeconds()
                     });
                 }
             }
@@ -126,7 +127,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// </summary>
         /// <param name="subject"></param>
         /// <returns></returns>
-        private async Task<String> CreateRefreshTokenAsync(JwtSecurityToken token)
+        private async Task<(String refreshTokenId, DateTime expiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
         {
             var refreshTokenId = Guid.NewGuid().ToString("n");
             var refreshToken = new RefreshTokenModel
@@ -140,7 +141,7 @@ namespace FlexinetsAuthentication.Core.Controllers
             };
 
             await _refreshTokenRepository.SaveTokenAsync(refreshToken);
-            return refreshTokenId;
+            return (refreshTokenId, refreshToken.ExpiresUtc);
         }
     }
 }
