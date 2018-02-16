@@ -1,10 +1,12 @@
-﻿using Flexinets.Core.Database.Models;
+﻿using Flexinets.Common;
+using Flexinets.Core.Database.Models;
 using Flexinets.Portal.Models;
 using Flexinets.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,10 +26,9 @@ namespace FlexinetsAuthentication.Core.Controllers
 
 
         [HttpGet("api/account/"), Authorize]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> GetAccount()
         {
-            var adminId = Convert.ToInt32(User.Identity.Name);
-            var admin = await _context.Admins.Include(o => o.Roles).SingleOrDefaultAsync(o => o.AdminId == adminId);
+            var admin = await _context.Admins.Include(o => o.Roles).SingleOrDefaultAsync(o => o.AdminId == Convert.ToInt32(User.Identity.Name));
 
             return Ok(new AdminModel
             {
@@ -40,108 +41,71 @@ namespace FlexinetsAuthentication.Core.Controllers
         }
 
 
-        //[ValidateModelStateFilter]
-        //[HttpPost("api/account/")]
-        //public async Task<IActionResult> Post([FromBody]AdminModel model)
-        //{
-        //    try
-        //    {
-        //        var admin = await _adminRepository.GetAdminAsync(User.Identity.GetUserId<Int32>(), false);
-        //        if (model.Fullname != null && model.Fullname.IndexOf(" ") > 0)
-        //        {
-        //            admin.Firstname = model.Fullname.Substring(0, model.Fullname.LastIndexOf(" ")).Trim();
-        //            admin.Lastname = model.Fullname.Substring(model.Fullname.LastIndexOf(" ")).Trim();
-        //        }
-        //        else
-        //        {
-        //            admin.Firstname = "";
-        //            admin.Lastname = model.Fullname ?? "";
-        //        }
-        //        admin.EmailAddress = model.EmailAddress;
-        //        admin.Phonenumber = Phonenumber.Parse(model.Phonenumber);
-        //        await _adminRepository.SaveAdminAsync(admin);
-        //        return Ok();
-        //    }
-        //    catch (UpdateException ex)
-        //    {
-        //        if (!ex.InnerException.Message.Contains("Unique"))
-        //            throw;
-
-        //        ModelState.AddModelError("EmailAddress", "This email address is already registered");
-        //        return BadRequest(ModelState);
-        //    }
-        //}
+        [ValidateModelStateFilter]
+        [HttpPost("api/account/")]
+        public async Task<IActionResult> UpdateAccount([FromBody]AdminModel model)
+        {
+            try
+            {
+                var (firstname, lastname) = Utils.SplitFullname(model.Fullname);
+                var admin = await _context.Admins.SingleOrDefaultAsync(o => o.AdminId == Convert.ToInt32(User.Identity.Name));
+                admin.Firstname = firstname;
+                admin.Lastname = lastname;
+                admin.Email = model.EmailAddress;
+                admin.Phonenumber = Phonenumber.Parse(model.Phonenumber);
+                await _context.SaveChangesAsync();
+                return Ok(admin.AdminId);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+            {
+                ModelState.AddModelError("EmailAddress", "This email address is already registered");
+                return BadRequest(ModelState);
+            }
+        }
 
 
-        //[ValidateModelStateFilter]
-        //[HttpPost("api/account/changepassword/")]
-        //public async Task<IActionResult> ChangePassword([FromBody]ChangePasswordModel model)
-        //{
-        //    var userid = Convert.ToInt32(User.Identity.Name);
-        //    var admin = await _adminRepository.GetAdminAsync(User.Identity.GetUserId<Int32>(), false);
-        //    if (await _adminAuthenticationProvider.AuthenticateAsync(admin.Username ?? admin.EmailAddress, model.OldPassword).GetValueOrDefault(0) == userid)
-        //    {
-        //        admin.SetPassword(model.Password);
-        //        admin.MustChangePassword = false;
-        //        await _adminRepository.SaveAdminAsync(admin);
-        //        return Ok();
-        //    }
+        [ValidateModelStateFilter]
+        [HttpPost("api/account/changepassword/")]
+        public async Task<IActionResult> ChangePassword([FromBody]ChangePasswordModel model)
+        {
+            var admin = await _context.Admins.SingleOrDefaultAsync(o => o.AdminId == Convert.ToInt32(User.Identity.Name));
+            if ((await _adminAuthenticationProvider.AuthenticateAsync(admin.Username ?? admin.Email, model.OldPassword))?.AdminId == admin.AdminId)
+            {
+                admin.Password = CryptoMethods.HashPassword(model.Password);
+                admin.Mustchangepassword = false;
+                await _context.SaveChangesAsync();
+                return Ok(admin.AdminId);
+            }
 
-        //    return BadRequest("Invalid credentials");
-        //}
-
-
-        //[ValidateModelStateFilter]
-        //[HttpPost("api/account/setpassword/")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> SetPassword([FromBody]SetPasswordModel model)
-        //{
-        //    var adminId = _adminManager.Authenticate(model.EmailAddress, model.OldPassword);
-        //    if (adminId.HasValue)
-        //    {
-        //        var admin = await _adminRepository.GetAdminAsync(adminId.Value, false);
-        //        admin.SetPassword(model.Password);
-        //        admin.MustChangePassword = false;
-        //        await _adminRepository.SaveAdminAsync(admin);
-        //        return Ok();
-        //    }
-
-        //    return BadRequest("Invalid credentials");
-        //}
+            return BadRequest("Invalid credentials");
+        }
 
 
-        //[ValidateModelStateFilter]
-        //[HttpPost("api/account/resetpassword/beginreset/")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Post(ResetModel model)
-        //{
-        //    try
-        //    {
-        //        await _adminManager.BeginResetAsync(model.EmailAddress, HttpContext.Current.Request.UserHostAddress, CloudConfigurationManager.GetSetting("ResetAdminUrl"));
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _log.Error("Reset begin failed", ex);
-        //    }
-        //    return Ok();
-        //}
+        [ValidateModelStateFilter]
+        [HttpPost("api/account/resetpassword/beginreset/")]
+        [AllowAnonymous]
+        public async Task<IActionResult> BeginReset(ResetModel model)
+        {
+            await _adminAuthenticationProvider.BeginResetAsync(model.EmailAddress, HttpContext.Connection.RemoteIpAddress.ToString(), model.ReturnUrl);
+            return Ok();
+        }
 
 
-        //[HttpGet("api/account/resetpassword/validateresettoken/{id}")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Get(String id)
-        //{
-        //    return Ok(await _adminManager.IsValidResetTokenAsync(id));
-        //}
+        [HttpGet("api/account/resetpassword/validateresettoken/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ValidateResetToken(String id)
+        {
+            return Ok(await _adminAuthenticationProvider.IsValidResetTokenAsync(id));
+        }
 
 
-        //[HttpPost("api/account/resetpassword/completereset/")]
-        //[ValidateModelStateFilter]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Post(ResetPasswordModel model)
-        //{
-        //    return Ok(await _adminManager.CompleteResetAsync(model.ResetId, model.Password, HttpContext.Current.Request.UserHostAddress));
-        //}
+        [HttpPost("api/account/resetpassword/completereset/")]
+        [ValidateModelStateFilter]
+        [AllowAnonymous]
+        public async Task<IActionResult> CompleteReset(ResetPasswordModel model)
+        {
+            return Ok(await _adminAuthenticationProvider.CompleteResetAsync(model.ResetId, model.Password, HttpContext.Connection.RemoteIpAddress.ToString()));
+        }
 
 
         [HttpGet("api/checkemailavailability")]

@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\FlexinetsPortalCore\Flexinets.Portal.Models\Flexinets.Portal.Models.NetStandard.csproj" />
+    <ProjectReference Include="..\Flexinets.Common.NetStandard\Flexinets.Common.NetStandard.csproj" />
     <ProjectReference Include="..\Flexinets.Db\Flexinets.Core.Database.csproj" />
   </ItemGroup>
 
