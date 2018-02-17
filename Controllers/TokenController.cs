@@ -25,6 +25,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         private readonly String _jwtKey;
         private readonly String _jwtIssuer;
         private readonly String _jwtAudience;
+        private readonly String _refreshTokenCookieName = "refresh_token";
 
 
         public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment)
@@ -76,15 +77,18 @@ namespace FlexinetsAuthentication.Core.Controllers
             }
             else if (loginModel.grant_type == "refresh_token")
             {
-                var refreshToken = await _refreshTokenRepository.GetTokenAsync(Request.Cookies["refresh_token"]);
-                if (refreshToken != null)
+                if (Request.Cookies.TryGetValue(_refreshTokenCookieName, out var refreshTokenId))
                 {
-                    var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
-                    var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
-                    await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
-                    var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
+                    var refreshToken = await _refreshTokenRepository.GetTokenAsync(refreshTokenId);
+                    if (refreshToken != null)
+                    {
+                        var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
+                        var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
+                        await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
+                        var (newRefreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
 
-                    return GetResponse(refreshTokenId, newJwtToken, expiresUtc);
+                        return GetResponse(newRefreshTokenId, newJwtToken, expiresUtc);
+                    }
                 }
             }
 
@@ -95,10 +99,10 @@ namespace FlexinetsAuthentication.Core.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            if (Request.Cookies.ContainsKey("refresh_token"))
+            if (Request.Cookies.TryGetValue(_refreshTokenCookieName, out var refreshTokenId))
             {
-                await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
-                Response.Cookies.Append("refresh_token", "", new CookieOptions { Expires = DateTime.UtcNow.AddYears(-1) });
+                await _refreshTokenRepository.RemoveTokenAsync(refreshTokenId);
+                Response.Cookies.Append(_refreshTokenCookieName, "", new CookieOptions { Expires = DateTime.UtcNow.AddYears(-1) });
             }
             return Ok();
         }
