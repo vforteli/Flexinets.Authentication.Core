@@ -38,8 +38,7 @@ namespace FlexinetsAuthentication.Core
         public async Task<Admins> AuthenticateAsync(String username, String password)
         {
             var admin = await _context.Admins.Include(m => m.Roles).SingleOrDefaultAsync(o => (o.Username == username || o.Email == username) && o.Status == 1);
-
-            if (admin != null && admin.Password != null)
+            if (admin != null)
             {
                 var result = CryptoMethods.VerifyHashedPassword(admin.Password, password);
                 if (result == PasswordVerificationResult.Success)

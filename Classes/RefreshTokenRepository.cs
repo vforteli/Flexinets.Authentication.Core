@@ -1,7 +1,7 @@
 ﻿using Flexinets.Core.Database.Models;
+using Flexinets.Security;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Flexinets.Authentication
@@ -17,8 +17,9 @@ namespace Flexinets.Authentication
         }
 
 
-        public async Task SaveTokenAsync(RefreshTokenModel token)
+        public async Task<String> SaveTokenAsync(RefreshTokenModel token)
         {
+            var refreshTokenId = Guid.NewGuid().ToString("n");
             _context.RefreshTokens.Add(new RefreshTokens
             {
                 ClientId = token.ClientId,
@@ -26,29 +27,30 @@ namespace Flexinets.Authentication
                 IssuedUtc = token.IssuedUtc,
                 ProtectedTicket = token.ProtectedTicket,
                 Subject = token.Subject,
-                TokenIdHash = token.Id
+                TokenIdHash = CryptoMethods.GetSHA512Hash(refreshTokenId)
             });
             await _context.SaveChangesAsync();
+            return refreshTokenId;
         }
 
 
-        public async Task<RefreshTokenModel> GetTokenAsync(String tokenIdHash)
+        public async Task<RefreshTokenModel> GetTokenAsync(String tokenId)
         {
-            return await _context.RefreshTokens.Select(o => new RefreshTokenModel
+            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(tokenId));
+            return token != null ? new RefreshTokenModel
             {
-                ClientId = o.ClientId,
-                ExpiresUtc = o.ExpiresUtc,
-                IssuedUtc = o.IssuedUtc,
-                ProtectedTicket = o.ProtectedTicket,
-                Subject = o.Subject,
-                Id = o.TokenIdHash
-            }).SingleOrDefaultAsync(o => o.Id == tokenIdHash);
+                ClientId = token.ClientId,
+                ExpiresUtc = token.ExpiresUtc,
+                IssuedUtc = token.IssuedUtc,
+                ProtectedTicket = token.ProtectedTicket,
+                Subject = token.Subject
+            } : null;
         }
 
 
-        public async Task RemoveTokenAsync(String tokenIdHash)
+        public async Task RemoveTokenAsync(String tokenId)
         {
-            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == tokenIdHash);
+            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(tokenId));
             if (token != null)
             {
                 _context.RefreshTokens.Remove(token);

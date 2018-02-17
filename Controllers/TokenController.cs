@@ -76,14 +76,12 @@ namespace FlexinetsAuthentication.Core.Controllers
             }
             else if (loginModel.grant_type == "refresh_token")
             {
-                var hashedTokenId = CryptoMethods.GetSHA512Hash(Request.Cookies["refresh_token"]);
-                //var hashedTokenId = CryptoMethods.GetSHA512Hash(loginModel.refresh_token);    // Cookie or header?
-                var refreshToken = await _refreshTokenRepository.GetTokenAsync(hashedTokenId);
+                var refreshToken = await _refreshTokenRepository.GetTokenAsync(Request.Cookies["refresh_token"]);
                 if (refreshToken != null)
                 {
                     var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
                     var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
-                    await _refreshTokenRepository.RemoveTokenAsync(hashedTokenId);
+                    await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
                     var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
 
                     return GetResponse(refreshTokenId, newJwtToken, expiresUtc);
@@ -99,11 +97,10 @@ namespace FlexinetsAuthentication.Core.Controllers
         {
             if (Request.Cookies.ContainsKey("refresh_token"))
             {
-                var hashedTokenId = CryptoMethods.GetSHA512Hash(Request.Cookies["refresh_token"]);
-                await _refreshTokenRepository.RemoveTokenAsync(hashedTokenId);
+                await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
                 Response.Cookies.Append("refresh_token", "", new CookieOptions { Expires = DateTime.UtcNow.AddYears(-1) });
             }
-            return Ok(true);
+            return Ok();
         }
 
 
@@ -150,10 +147,8 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// <returns></returns>
         private async Task<(String refreshTokenId, DateTime refreshTokenExpiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
         {
-            var refreshTokenId = Guid.NewGuid().ToString("n");
             var refreshToken = new RefreshTokenModel
             {
-                Id = CryptoMethods.GetSHA512Hash(refreshTokenId),
                 ClientId = "flexinetsportal",  // todo maybe get rid of this...
                 Subject = token.Subject,
                 IssuedUtc = DateTime.UtcNow,
@@ -161,7 +156,7 @@ namespace FlexinetsAuthentication.Core.Controllers
                 ProtectedTicket = new JwtSecurityTokenHandler().WriteToken(token)
             };
 
-            await _refreshTokenRepository.SaveTokenAsync(refreshToken);
+            var refreshTokenId = await _refreshTokenRepository.SaveTokenAsync(refreshToken);
             return (refreshTokenId, refreshToken.ExpiresUtc);
         }
     }
