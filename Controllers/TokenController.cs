@@ -4,13 +4,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace FlexinetsAuthentication.Core.Controllers
@@ -22,21 +20,21 @@ namespace FlexinetsAuthentication.Core.Controllers
         private readonly CookieOptions _cookieOptions = new CookieOptions { HttpOnly = true, Secure = true };
         private readonly Int32 _accessTokenLifetimeSeconds;
         private readonly Int32 _refreshTokenLifetimeSeconds;
-        private readonly String _jwtKey;
         private readonly String _jwtIssuer;
         private readonly String _jwtAudience;
         private readonly String _refreshTokenCookieName = "refresh_token";
+        private readonly SigningCredentialsProvider _signingCredentialsProvider;
 
 
-        public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment)
+        public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment, SigningCredentialsProvider signingCredentialsProvider)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _adminAuthenticationProvider = adminAuthenticationProvider;
             _accessTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:AccessTokenLifetimeSeconds"]);
             _refreshTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]);
-            _jwtKey = configuration["Jwt:Key"];
             _jwtIssuer = configuration["Jwt:Issuer"];
             _jwtAudience = configuration["Jwt:Audience"];
+            _signingCredentialsProvider = signingCredentialsProvider;
 
 
             if (hostingEnvironment.IsDevelopment())
@@ -79,10 +77,10 @@ namespace FlexinetsAuthentication.Core.Controllers
             {
                 if (Request.Cookies.TryGetValue(_refreshTokenCookieName, out var refreshTokenId))
                 {
-                    var refreshToken = await _refreshTokenRepository.GetTokenAsync(refreshTokenId);
+                    var refreshToken = await _refreshTokenRepository.GetRefreshTokenAsync(refreshTokenId);
                     if (refreshToken != null)
                     {
-                        var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.ProtectedTicket);
+                        var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.AccessToken);
                         var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
                         await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
                         var (newRefreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
@@ -140,7 +138,7 @@ namespace FlexinetsAuthentication.Core.Controllers
               issuer: _jwtIssuer,
               claims: claims,
               expires: DateTime.UtcNow.AddSeconds(_accessTokenLifetimeSeconds),
-              signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey)), SecurityAlgorithms.HmacSha256));
+              signingCredentials: _signingCredentialsProvider.Credentials);
         }
 
 
@@ -151,16 +149,14 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// <returns></returns>
         private async Task<(String refreshTokenId, DateTime refreshTokenExpiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
         {
-            var refreshToken = new RefreshTokenModel
-            {
-                ClientId = "flexinetsportal",  // todo maybe get rid of this...
-                Subject = token.Subject,
-                IssuedUtc = DateTime.UtcNow,
-                ExpiresUtc = DateTime.UtcNow.AddSeconds(_refreshTokenLifetimeSeconds),
-                ProtectedTicket = new JwtSecurityTokenHandler().WriteToken(token)
-            };
+            var refreshToken = new RefreshTokenModel(
+                token.Subject,
+                DateTime.UtcNow,
+                TimeSpan.FromSeconds(_refreshTokenLifetimeSeconds),
+                new JwtSecurityTokenHandler().WriteToken(token));
 
-            var refreshTokenId = await _refreshTokenRepository.SaveTokenAsync(refreshToken);
+
+            var refreshTokenId = await _refreshTokenRepository.SaveRefreshTokenAsync(refreshToken);
             return (refreshTokenId, refreshToken.ExpiresUtc);
         }
     }
