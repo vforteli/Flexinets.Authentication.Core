@@ -1,6 +1,7 @@
 ﻿using DigiWar.Security.Cryptography;
 using Flexinets.Core.Database.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using System;
 using System.Security.Cryptography;
 using System.Text;
@@ -45,7 +46,8 @@ namespace Flexinets.Security
         /// <returns></returns>
         public static PasswordVerificationResult VerifyHashedPassword(String hash, String password)
         {
-            var hasher = new PasswordHasher<Admins>();
+            var passwordHasherOptions = Options.Create(new PasswordHasherOptions { CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV2 });   // todo change after migration
+            var hasher = new PasswordHasher<Admins>(passwordHasherOptions);
             try
             {
                 return hasher.VerifyHashedPassword(null, hash, password);
@@ -82,8 +84,8 @@ namespace Flexinets.Security
         /// <returns></returns>
         public static String HashPassword(String password)
         {
-            var hasher = new PasswordHasher<Admins>();
-            return hasher.HashPassword(null, password);
+            var passwordHasherOptions = Options.Create(new PasswordHasherOptions { CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV2 });   // todo change after migration
+            return new PasswordHasher<Admins>(passwordHasherOptions).HashPassword(null, password);
         }
 
 
