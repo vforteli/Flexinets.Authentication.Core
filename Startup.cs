@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -23,12 +24,14 @@ namespace FlexinetsAuthentication.Core
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IConfiguration configuration, IHostingEnvironment environment)
         {
             Configuration = configuration;
+            Environment = environment;
         }
 
         public IConfiguration Configuration { get; }
+        public IHostingEnvironment Environment { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -41,7 +44,7 @@ namespace FlexinetsAuthentication.Core
             //var kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(GetToken));
             //var certificate = kvClient.GetCertificateAsync("changeme").Result;
             //services.AddSingleton(new SigningCredentialsProvider(new SigningCredentials(new X509SecurityKey(new X509Certificate2(certificate.)), SecurityAlgorithms.RsaSha512)));
-            services.AddSingleton(new SigningCredentialsProvider(new SigningCredentials(new X509SecurityKey(new X509Certificate2("C:/users/verne/desktop/jwtkey.pfx", "testkey")), SecurityAlgorithms.RsaSha512)));
+            services.AddSingleton(new SigningCredentialsProvider(GetSigningCredentials()));
 
             ConfigureAuthentication(services);
 
@@ -60,7 +63,7 @@ namespace FlexinetsAuthentication.Core
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = Configuration["Jwt:Issuer"],
                     ValidAudience = Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new X509SecurityKey(new X509Certificate2("C:/users/verne/desktop/jwtkey.cer"))   // todo inject or use azure key vault maybe...
+                    IssuerSigningKey = GetIssuerSigningKey()
                 };
             });
         }
@@ -79,7 +82,7 @@ namespace FlexinetsAuthentication.Core
         }
 
 
-        public static async Task<String> GetToken(String authority, String resource, String scope)
+        private static async Task<String> GetToken(String authority, String resource, String scope)
         {
             var authContext = new AuthenticationContext(authority);
             var clientCred = new ClientCredential("changeme", "changeme");  // todo inject
@@ -90,6 +93,27 @@ namespace FlexinetsAuthentication.Core
             }
 
             return result.AccessToken;
+        }
+
+
+        /// <summary>
+        /// Get the signing credentials from somewhere
+        /// </summary>
+        /// <returns></returns>
+        private SigningCredentials GetSigningCredentials()
+        {
+            return new SigningCredentials(new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, "jwtkey.pfx"), "testkey")), SecurityAlgorithms.RsaSha512);
+        }
+
+
+        /// <summary>
+        /// Get the issuer signing key from somewhere
+        /// </summary>
+        /// <param name="env"></param>
+        /// <returns></returns>
+        private X509SecurityKey GetIssuerSigningKey()
+        {
+            return new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, "jwtkey.cer")));   // todo inject or use azure key vault maybe...
         }
     }
 }
