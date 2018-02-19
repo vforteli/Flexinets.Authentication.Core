@@ -51,7 +51,7 @@ namespace Flexinets.Authentication
         /// <returns></returns>
         public async Task<RefreshTokenModel> GetRefreshTokenAsync(String refreshTokenId)
         {
-            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(refreshTokenId));
+            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(refreshTokenId) && o.ExpiresUtc >= DateTime.UtcNow);
             return token != null ? new RefreshTokenModel
             {
                 ExpiresUtc = token.ExpiresUtc,
@@ -69,11 +69,15 @@ namespace Flexinets.Authentication
         /// <returns></returns>
         public async Task RemoveTokenAsync(String tokenId)
         {
-            var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(tokenId));
-            if (token != null)
+            using (var transaction = await _context.Database.BeginTransactionAsync())
             {
-                _context.RefreshTokens.Remove(token);
-                await _context.SaveChangesAsync();
+                var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(tokenId));
+                if (token != null)
+                {
+                    _context.RefreshTokens.Remove(token);
+                    await _context.SaveChangesAsync();
+                    transaction.Commit();
+                }
             }
         }
     }

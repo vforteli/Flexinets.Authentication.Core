@@ -80,11 +80,9 @@ namespace FlexinetsAuthentication.Core.Controllers
                     var refreshToken = await _refreshTokenRepository.GetRefreshTokenAsync(refreshTokenId);
                     if (refreshToken != null)
                     {
-                        var oldJwtToken = new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.AccessToken);
-                        var newJwtToken = CreateJwtToken(oldJwtToken.Claims);
-                        await _refreshTokenRepository.RemoveTokenAsync(Request.Cookies["refresh_token"]);
+                        var newJwtToken = CreateJwtToken(new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.AccessToken).Claims);
+                        await _refreshTokenRepository.RemoveTokenAsync(refreshTokenId);
                         var (newRefreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
-
                         return GetResponse(newRefreshTokenId, newJwtToken, expiresUtc);
                     }
                 }
