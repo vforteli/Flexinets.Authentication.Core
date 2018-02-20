@@ -1,24 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using Flexinets.Authentication;
+﻿using Flexinets.Authentication;
 using Flexinets.Core.Database.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Azure.KeyVault;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
 
 namespace FlexinetsAuthentication.Core
 {
@@ -40,10 +31,6 @@ namespace FlexinetsAuthentication.Core
             services.AddTransient<RefreshTokenRepository>();
             services.AddTransient<AdminAuthenticationProvider>();
             services.AddDbContext<FlexinetsContext>(options => options.UseSqlServer(Configuration.GetConnectionString("FlexinetsContext")));
-
-            //var kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(GetToken));
-            //var certificate = kvClient.GetCertificateAsync("changeme").Result;
-            //services.AddSingleton(new SigningCredentialsProvider(new SigningCredentials(new X509SecurityKey(new X509Certificate2(certificate.)), SecurityAlgorithms.RsaSha512)));
             services.AddSingleton(new SigningCredentialsProvider(GetSigningCredentials()));
 
             ConfigureAuthentication(services);
@@ -82,27 +69,13 @@ namespace FlexinetsAuthentication.Core
         }
 
 
-        private static async Task<String> GetToken(String authority, String resource, String scope)
-        {
-            var authContext = new AuthenticationContext(authority);
-            var clientCred = new ClientCredential("changeme", "changeme");  // todo inject
-            var result = await authContext.AcquireTokenAsync(resource, clientCred);
-            if (result == null)
-            {
-                throw new InvalidOperationException("Failed to obtain the JWT token");
-            }
-
-            return result.AccessToken;
-        }
-
-
         /// <summary>
         /// Get the signing credentials from somewhere
         /// </summary>
         /// <returns></returns>
         private SigningCredentials GetSigningCredentials()
         {
-            return new SigningCredentials(new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, "jwtkey.pfx"), "testkey")), SecurityAlgorithms.RsaSha512);
+            return new SigningCredentials(new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, Configuration["Jwt:SigningCertificatePfx"]), Configuration["Jwt:SigningCertificatePassword"])), SecurityAlgorithms.RsaSha512);
         }
 
 
@@ -113,7 +86,7 @@ namespace FlexinetsAuthentication.Core
         /// <returns></returns>
         private X509SecurityKey GetIssuerSigningKey()
         {
-            return new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, "jwtkey.cer")));   // todo inject or use azure key vault maybe...
+            return new X509SecurityKey(new X509Certificate2(Path.Combine(Environment.ContentRootPath, Configuration["Jwt:SigningCertificateCer"])));
         }
     }
 }
