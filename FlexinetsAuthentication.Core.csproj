@@ -23,4 +23,13 @@
     <ProjectReference Include="..\Flexinets.Db\Flexinets.Core.Database.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="jwtkey.cer">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="jwtkey.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
