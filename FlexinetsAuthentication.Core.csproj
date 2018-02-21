@@ -9,6 +9,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="log4net" Version="2.0.8" />
+    <PackageReference Include="Log4Slack.NetStandard" Version="1.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.5" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="2.0.2" />
   </ItemGroup>
@@ -21,6 +23,12 @@
     <ProjectReference Include="..\..\FlexinetsPortalCore\Flexinets.Portal.Models\Flexinets.Portal.Models.NetStandard.csproj" />
     <ProjectReference Include="..\Flexinets.Common.NetStandard\Flexinets.Common.NetStandard.csproj" />
     <ProjectReference Include="..\Flexinets.Db\Flexinets.Core.Database.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

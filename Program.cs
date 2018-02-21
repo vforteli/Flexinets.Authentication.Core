@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using log4net;
+using log4net.Config;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using System.IO;
+using System.Reflection;
 
 namespace FlexinetsAuthentication.Core
 {
@@ -14,6 +11,8 @@ namespace FlexinetsAuthentication.Core
     {
         public static void Main(string[] args)
         {
+            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo("log4net.config"));
+
             BuildWebHost(args).Run();
         }
 

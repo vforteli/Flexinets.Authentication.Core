@@ -1,5 +1,6 @@
 ﻿using Flexinets.Authentication;
 using Flexinets.Security;
+using log4net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,7 @@ namespace FlexinetsAuthentication.Core.Controllers
 {
     public class TokenController : Controller
     {
+        private readonly ILog _log = LogManager.GetLogger(typeof(TokenController));
         private readonly RefreshTokenRepository _refreshTokenRepository;
         private readonly AdminAuthenticationProvider _adminAuthenticationProvider;
         private readonly CookieOptions _cookieOptions = new CookieOptions { HttpOnly = true, Secure = true };
@@ -70,7 +72,16 @@ namespace FlexinetsAuthentication.Core.Controllers
                     var jwtToken = CreateJwtToken(claims);
                     var (refreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(jwtToken);
 
+                    if (!(admin.Roles.Select(o => (RoleTypes)o.RoleId).Contains(RoleTypes.GlobalAdmin) || admin.Roles.Select(o => (RoleTypes)o.RoleId).Contains(RoleTypes.Partner)))
+                    {
+                        _log.Info($"{admin.Email} logged in");
+                    }
+
                     return GetResponse(refreshTokenId, jwtToken, expiresUtc);
+                }
+                else
+                {
+                    _log.Warn($"Failed login for username {loginModel.Username}, password is {loginModel.Password.Length} characters long");
                 }
             }
             else if (loginModel.grant_type == "refresh_token")
