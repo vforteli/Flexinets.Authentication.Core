@@ -1,5 +1,5 @@
 ﻿using Flexinets.Authentication;
-using Flexinets.Security;
+using Flexinets.Security.Core;
 using log4net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;

@@ -1,5 +1,5 @@
 ﻿using Flexinets.Core.Database.Models;
-using Flexinets.Security;
+using Flexinets.Security.Core;
 using log4net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,5 @@
 ﻿using Flexinets.Core.Database.Models;
-using Flexinets.Security;
+using Flexinets.Security.Core;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;

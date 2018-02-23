@@ -5,10 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.8" />
     <PackageReference Include="Log4Slack.NetStandard" Version="1.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.5" />
@@ -23,6 +19,7 @@
     <ProjectReference Include="..\..\FlexinetsPortalCore\Flexinets.Portal.Models\Flexinets.Portal.Models.NetStandard.csproj" />
     <ProjectReference Include="..\Flexinets.Common.NetStandard\Flexinets.Common.NetStandard.csproj" />
     <ProjectReference Include="..\Flexinets.Db\Flexinets.Core.Database.csproj" />
+    <ProjectReference Include="..\Flexinets.Security.Core\Flexinets.Security.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 ﻿using Flexinets.Common;
 using Flexinets.Core.Database.Models;
 using Flexinets.Portal.Models;
-using Flexinets.Security;
+using Flexinets.Security.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
