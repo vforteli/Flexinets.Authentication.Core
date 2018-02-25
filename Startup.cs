@@ -1,4 +1,5 @@
 ﻿using Flexinets.Authentication;
+using Flexinets.Common.WebCore;
 using Flexinets.Core.Database.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -35,7 +36,7 @@ namespace FlexinetsAuthentication.Core
 
             ConfigureAuthentication(services);
 
-            services.AddMvc().AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
+            services.AddMvc(o => o.Filters.Add(typeof(LogExceptionFilterAttribute))).AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
         }
 
         private void ConfigureAuthentication(IServiceCollection services)
