@@ -36,7 +36,7 @@ namespace FlexinetsAuthentication.Core
 
             ConfigureAuthentication(services);
 
-            services.AddMvc(o => o.Filters.Add(typeof(LogExceptionFilterAttribute))).AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
+            services.AddMvcCore(o => o.Filters.Add(typeof(LogExceptionFilterAttribute))).AddCors().AddJsonFormatters(options => options.ContractResolver = new DefaultContractResolver());
         }
 
         private void ConfigureAuthentication(IServiceCollection services)
