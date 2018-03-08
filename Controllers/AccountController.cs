@@ -84,8 +84,13 @@ namespace FlexinetsAuthentication.Core.Controllers
         [ValidateModelStateFilter]
         [HttpPost("api/account/resetpassword/beginreset/")]
         [AllowAnonymous]
-        public async Task<IActionResult> BeginReset(ResetModel model)
+        public async Task<IActionResult> BeginReset([FromBody]ResetModel model)
         {
+
+            if (String.IsNullOrEmpty(model.ReturnUrl))
+            {
+                model.ReturnUrl = Request.Headers["Referer"].ToString();
+            }
             await _adminAuthenticationProvider.BeginResetAsync(model.EmailAddress, HttpContext.Connection.RemoteIpAddress.ToString(), model.ReturnUrl);
             return Ok();
         }
@@ -102,7 +107,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         [HttpPost("api/account/resetpassword/completereset/")]
         [ValidateModelStateFilter]
         [AllowAnonymous]
-        public async Task<IActionResult> CompleteReset(ResetPasswordModel model)
+        public async Task<IActionResult> CompleteReset([FromBody]ResetPasswordModel model)
         {
             return Ok(await _adminAuthenticationProvider.CompleteResetAsync(model.ResetId, model.Password, HttpContext.Connection.RemoteIpAddress.ToString()));
         }

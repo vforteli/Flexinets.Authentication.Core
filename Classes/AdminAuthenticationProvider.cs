@@ -77,6 +77,11 @@ namespace FlexinetsAuthentication.Core
         /// <returns></returns>
         public async Task BeginResetAsync(String email, String ipaddress, String returnUrl)
         {
+            if (String.IsNullOrEmpty(returnUrl))
+            {
+                _log.Warn($"No return url specified in reset by {email}");
+                return;
+            }
             if (!_resetReturnDomains.Any(o => returnUrl.StartsWith(o)))
             {
                 _log.Warn($"Invalid returnUrl {returnUrl} in password reset request. Email: {email}, Ip: {ipaddress}");
@@ -99,7 +104,7 @@ namespace FlexinetsAuthentication.Core
 
                     // todo move this to servicebus...
                     using (var message = new System.Net.Mail.MailMessage("portal@flexinets.se", email))
-                    {
+                    {                      
                         message.Subject = "Flexinets Portal - Password reset";
                         message.Bcc.Add("support@flexinets.se");
                         message.Body = "To reset your password please follow this link" + Environment.NewLine +
@@ -109,6 +114,7 @@ namespace FlexinetsAuthentication.Core
                                        + "If you did not start the reset process, you can ignore this message.";
 
                         await _smtpClient.SendAsync(message);
+                        _log.Info($"Password reset started for email {email}");
                     }
                 }
                 else
