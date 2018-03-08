@@ -1,4 +1,5 @@
-﻿using Flexinets.Core.Database.Models;
+﻿using Flexinets.Core.Communication.Mail;
+using Flexinets.Core.Database.Models;
 using Flexinets.Security.Core;
 using log4net;
 using Microsoft.AspNetCore.Identity;
@@ -15,6 +16,7 @@ namespace FlexinetsAuthentication.Core
     {
         private readonly FlexinetsContext _context;
         private readonly IEnumerable<String> _resetReturnDomains;
+        private readonly ISmtpClient _smtpClient;
         private readonly ILog _log = LogManager.GetLogger(typeof(AdminAuthenticationProvider));
 
 
@@ -22,9 +24,19 @@ namespace FlexinetsAuthentication.Core
         /// Provider for authenticating admins
         /// </summary>
         /// <param name="context"></param>
-        public AdminAuthenticationProvider(FlexinetsContext context, IConfiguration configuration)
+        public AdminAuthenticationProvider(FlexinetsContext context, IConfiguration configuration, ISmtpClient smtpClient)
         {
             _context = context;
+            _smtpClient = smtpClient;
+            // todo refactor
+            _resetReturnDomains = new[]
+            {
+                "https://secure.flexinets.se",
+                "https://wifi.flexinets.se",
+                "https://globalwifi.flexinets.se",
+                "https://portal.flexinets.se"
+            };
+
         }
 
 
@@ -63,11 +75,11 @@ namespace FlexinetsAuthentication.Core
         /// <param name="ipaddress"></param>
         /// <param name="resetBaseUrl"></param>
         /// <returns></returns>
-        public async Task BeginResetAsync(String email, String ipaddress, String resetBaseUrl)
+        public async Task BeginResetAsync(String email, String ipaddress, String returnUrl)
         {
-            if (!_resetReturnDomains.Contains(resetBaseUrl))
+            if (!_resetReturnDomains.Any(o => returnUrl.StartsWith(o)))
             {
-                _log.Warn($"Invalid resetbaseurl {resetBaseUrl} in password reset request. Email: {email}, Ip: {ipaddress}");
+                _log.Warn($"Invalid returnUrl {returnUrl} in password reset request. Email: {email}, Ip: {ipaddress}");
                 return;
             }
 
@@ -86,18 +98,18 @@ namespace FlexinetsAuthentication.Core
                     await _context.SaveChangesAsync();
 
                     // todo move this to servicebus...
-                    //using (var message = new MailMessage("portal@flexinets.se", email))
-                    //{
-                    //    message.Subject = "Flexinets Portal - Password reset";
-                    //    message.Bcc.Add("support@flexinets.se");
-                    //    message.Body = "To reset your password please follow this link" + Environment.NewLine +
-                    //                   Environment.NewLine
-                    //                   + resetBaseUrl + reset.id + Environment.NewLine +
-                    //                   Environment.NewLine
-                    //                   + "If you did not start the reset process, you can ignore this message.";
+                    using (var message = new System.Net.Mail.MailMessage("portal@flexinets.se", email))
+                    {
+                        message.Subject = "Flexinets Portal - Password reset";
+                        message.Bcc.Add("support@flexinets.se");
+                        message.Body = "To reset your password please follow this link" + Environment.NewLine +
+                                       Environment.NewLine
+                                       + returnUrl + reset.Id + Environment.NewLine +
+                                       Environment.NewLine
+                                       + "If you did not start the reset process, you can ignore this message.";
 
-                    //    await _smtpClient.SendAsync(message);
-                    //}
+                        await _smtpClient.SendAsync(message);
+                    }
                 }
                 else
                 {

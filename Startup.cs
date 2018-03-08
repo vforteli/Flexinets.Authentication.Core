@@ -1,5 +1,6 @@
 ﻿using Flexinets.Authentication;
 using Flexinets.Common.WebCore;
+using Flexinets.Core.Communication.Mail;
 using Flexinets.Core.Database.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
+using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 
@@ -33,7 +35,11 @@ namespace FlexinetsAuthentication.Core
             services.AddTransient<AdminAuthenticationProvider>();
             services.AddDbContext<FlexinetsContext>(options => options.UseSqlServer(Configuration.GetConnectionString("FlexinetsContext")));
             services.AddSingleton(new SigningCredentialsProvider(GetSigningCredentials()));
-
+            services.AddScoped<ISmtpClient>(o => new SmtpClient(
+               Configuration["SmtpClient:host"],
+               Convert.ToUInt16(Configuration["SmtpClient:port"]),
+               Configuration["SmtpClient:username"],
+               Configuration["SmtpClient:password"]));
             ConfigureAuthentication(services);
 
             services.AddMvcCore(o => o.Filters.Add(typeof(LogExceptionFilterAttribute))).AddCors().AddJsonFormatters(options => options.ContractResolver = new DefaultContractResolver());
