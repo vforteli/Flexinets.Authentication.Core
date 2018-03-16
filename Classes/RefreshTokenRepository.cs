@@ -65,13 +65,13 @@ namespace Flexinets.Authentication
         /// <summary>
         /// Remove a token
         /// </summary>
-        /// <param name="tokenId"></param>
+        /// <param name="refreshTokenId"></param>
         /// <returns></returns>
-        public async Task RemoveTokenAsync(String tokenId)
+        public async Task RemoveTokenAsync(String refreshTokenId)
         {
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
-                var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(tokenId));
+                var token = await _context.RefreshTokens.SingleOrDefaultAsync(o => o.TokenIdHash == CryptoMethods.GetSHA512Hash(refreshTokenId));
                 if (token != null)
                 {
                     _context.RefreshTokens.Remove(token);

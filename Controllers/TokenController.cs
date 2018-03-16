@@ -20,8 +20,8 @@ namespace FlexinetsAuthentication.Core.Controllers
         private readonly RefreshTokenRepository _refreshTokenRepository;
         private readonly AdminAuthenticationProvider _adminAuthenticationProvider;
         private readonly CookieOptions _cookieOptions = new CookieOptions { HttpOnly = true, Secure = true };
-        private readonly Int32 _accessTokenLifetimeSeconds;
-        private readonly Int32 _refreshTokenLifetimeSeconds;
+        private readonly TimeSpan _accessTokenLifetime;
+        private readonly TimeSpan _refreshTokenLifetime;
         private readonly String _jwtIssuer;
         private readonly String _jwtAudience;
         private readonly String _refreshTokenCookieName = "refresh_token";
@@ -32,8 +32,8 @@ namespace FlexinetsAuthentication.Core.Controllers
         {
             _refreshTokenRepository = refreshTokenRepository;
             _adminAuthenticationProvider = adminAuthenticationProvider;
-            _accessTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:AccessTokenLifetimeSeconds"]);
-            _refreshTokenLifetimeSeconds = Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]);
+            _accessTokenLifetime = TimeSpan.FromSeconds(Convert.ToInt32(configuration["Jwt:AccessTokenLifetimeSeconds"]));
+            _refreshTokenLifetime = TimeSpan.FromSeconds(Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]));
             _jwtIssuer = configuration["Jwt:Issuer"];
             _jwtAudience = configuration["Jwt:Audience"];
             _signingCredentialsProvider = signingCredentialsProvider;
@@ -79,10 +79,8 @@ namespace FlexinetsAuthentication.Core.Controllers
 
                     return GetResponse(refreshTokenId, jwtToken, expiresUtc);
                 }
-                else
-                {
-                    _log.Warn($"Failed login for username {loginModel.Username}, password is {loginModel.Password.Length} characters long");
-                }
+
+                _log.Warn($"Failed login for username {loginModel.Username}, password is {loginModel.Password.Length} characters long");
             }
             else if (loginModel.grant_type == "refresh_token")
             {
@@ -146,7 +144,7 @@ namespace FlexinetsAuthentication.Core.Controllers
               audience: _jwtAudience,
               issuer: _jwtIssuer,
               claims: claims,
-              expires: DateTime.UtcNow.AddSeconds(_accessTokenLifetimeSeconds),
+              expires: DateTime.UtcNow.Add(_accessTokenLifetime),
               signingCredentials: _signingCredentialsProvider.Credentials);
         }
 
@@ -159,11 +157,10 @@ namespace FlexinetsAuthentication.Core.Controllers
         private async Task<(String refreshTokenId, DateTime refreshTokenExpiresUtc)> CreateRefreshTokenAsync(JwtSecurityToken token)
         {
             var refreshToken = new RefreshTokenModel(
-                token.Subject,
-                DateTime.UtcNow,
-                TimeSpan.FromSeconds(_refreshTokenLifetimeSeconds),
-                new JwtSecurityTokenHandler().WriteToken(token));
-
+                subject: token.Subject,
+                issuedUtc: DateTime.UtcNow,
+                expiresIn: _refreshTokenLifetime,
+                accessToken: new JwtSecurityTokenHandler().WriteToken(token));
 
             var refreshTokenId = await _refreshTokenRepository.SaveRefreshTokenAsync(refreshToken);
             return (refreshTokenId, refreshToken.ExpiresUtc);

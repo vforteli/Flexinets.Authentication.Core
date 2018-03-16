@@ -10,12 +10,12 @@ namespace Flexinets.Authentication
         public String Subject;
 
         /// <summary>
-        /// Refresh token issued
+        /// Refresh token issued UTC
         /// </summary>
         public DateTime IssuedUtc;
 
         /// <summary>
-        /// Refresh token expires
+        /// Refresh token expires UTC
         /// </summary>
         public DateTime ExpiresUtc;
 
@@ -28,11 +28,18 @@ namespace Flexinets.Authentication
         public RefreshTokenModel() { }
 
 
-        public RefreshTokenModel(String subject, DateTime issuedUtc, TimeSpan expires, String accessToken)
+        /// <summary>
+        /// Create a refresh token model
+        /// </summary>
+        /// <param name="subject"></param>
+        /// <param name="issuedUtc"></param>
+        /// <param name="expiresIn"></param>
+        /// <param name="accessToken">Serialized (jwt) access token</param>
+        public RefreshTokenModel(String subject, DateTime issuedUtc, TimeSpan expiresIn, String accessToken)
         {
             Subject = subject;
             IssuedUtc = issuedUtc;
-            ExpiresUtc = issuedUtc.Add(expires);
+            ExpiresUtc = issuedUtc.Add(expiresIn);
             AccessToken = accessToken;
         }
     }

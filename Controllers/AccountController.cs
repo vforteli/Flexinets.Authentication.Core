@@ -1,4 +1,5 @@
 ﻿using Flexinets.Common;
+using Flexinets.Common.WebCore;
 using Flexinets.Core.Database.Models;
 using Flexinets.Portal.Models;
 using Flexinets.Security.Core;
