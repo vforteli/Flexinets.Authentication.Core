@@ -124,10 +124,23 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// <returns></returns>
         private OkObjectResult GetResponse(String refreshTokenId, JwtSecurityToken jwtToken, DateTime refreshTokenExpiresUtc)
         {
-            Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);   // much side effects such cookie
+            var tokenJson = new JwtSecurityTokenHandler().WriteToken(jwtToken);
+            Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
+
+            if (Request.Headers.TryGetValue("origin", out var origin))
+            {
+                // todo refactor
+                var safeDomains = new List<String> { "portal.flexinets.se", "frp.flexinets.se", "localhost" };
+                var uri = new Uri(origin);
+                if (safeDomains.Contains(uri.Host))
+                {
+                    Response.Cookies.Append("jwt_token", tokenJson, new CookieOptions { HttpOnly = true, Domain = uri.Host, Secure = _cookieOptions.Secure });
+                }
+            }
+
             return Ok(new
             {
-                access_token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                access_token = tokenJson,
                 refresh_token_expires = new DateTimeOffset(refreshTokenExpiresUtc).ToUnixTimeSeconds()
             });
         }
