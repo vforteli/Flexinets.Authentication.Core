@@ -77,7 +77,7 @@ namespace FlexinetsAuthentication.Core.Controllers
                         _log.Info($"{admin.Email} logged in");
                     }
 
-                    return GetResponse(refreshTokenId, jwtToken, expiresUtc);
+                    return CreateResponse(refreshTokenId, jwtToken, expiresUtc);
                 }
 
                 _log.Warn($"Failed login for username {loginModel.Username}, password is {loginModel.Password.Length} characters long");
@@ -92,7 +92,7 @@ namespace FlexinetsAuthentication.Core.Controllers
                         var newJwtToken = CreateJwtToken(new JwtSecurityTokenHandler().ReadJwtToken(refreshToken.AccessToken).Claims);
                         await _refreshTokenRepository.RemoveTokenAsync(refreshTokenId);
                         var (newRefreshTokenId, expiresUtc) = await CreateRefreshTokenAsync(newJwtToken);
-                        return GetResponse(newRefreshTokenId, newJwtToken, expiresUtc);
+                        return CreateResponse(newRefreshTokenId, newJwtToken, expiresUtc);
                     }
                 }
             }
@@ -122,7 +122,7 @@ namespace FlexinetsAuthentication.Core.Controllers
         /// <param name="jwtToken"></param>
         /// <param name="refreshTokenExpiresUtc"></param>
         /// <returns></returns>
-        private OkObjectResult GetResponse(String refreshTokenId, JwtSecurityToken jwtToken, DateTime refreshTokenExpiresUtc)
+        private OkObjectResult CreateResponse(String refreshTokenId, JwtSecurityToken jwtToken, DateTime refreshTokenExpiresUtc)
         {
             Response.Cookies.Append("refresh_token", refreshTokenId, _cookieOptions);
 
