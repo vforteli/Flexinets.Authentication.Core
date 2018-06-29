@@ -60,6 +60,8 @@ namespace FlexinetsAuthentication.Core
 
         private void ConfigureAuthentication(IServiceCollection services)
         {
+            services.Configure<JwtOptions>(Configuration.GetSection("Jwt"));
+            
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
             {
                 o.TokenValidationParameters = new TokenValidationParameters

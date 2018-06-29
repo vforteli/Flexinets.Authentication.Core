@@ -4,7 +4,7 @@ using log4net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -28,17 +28,17 @@ namespace FlexinetsAuthentication.Core.Controllers
         private readonly SigningCredentialsProvider _signingCredentialsProvider;
 
 
-        public TokenController(IConfiguration configuration, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment, SigningCredentialsProvider signingCredentialsProvider)
+        public TokenController(IOptions<JwtOptions> jwtOptions, RefreshTokenRepository refreshTokenRepository, AdminAuthenticationProvider adminAuthenticationProvider, IHostingEnvironment hostingEnvironment, SigningCredentialsProvider signingCredentialsProvider)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _adminAuthenticationProvider = adminAuthenticationProvider;
-            _accessTokenLifetime = TimeSpan.FromSeconds(Convert.ToInt32(configuration["Jwt:AccessTokenLifetimeSeconds"]));
-            _refreshTokenLifetime = TimeSpan.FromSeconds(Convert.ToInt32(configuration["Jwt:RefreshTokenLifetimeSeconds"]));
-            _jwtIssuer = configuration["Jwt:Issuer"];
-            _jwtAudience = configuration["Jwt:Audience"];
+            _accessTokenLifetime = TimeSpan.FromSeconds(jwtOptions.Value.AccessTokenLifetimeSeconds);
+            _refreshTokenLifetime = TimeSpan.FromSeconds(jwtOptions.Value.RefreshTokenLifetimeSeconds);
+            _jwtIssuer = jwtOptions.Value.Issuer;
+            _jwtAudience = jwtOptions.Value.Audience;
             _signingCredentialsProvider = signingCredentialsProvider;
 
-
+            _log.Warn(jwtOptions.Value.AccessTokenLifetimeSeconds);
             if (hostingEnvironment.IsDevelopment())
             {
                 _cookieOptions.Secure = false;
