@@ -35,11 +35,24 @@ namespace FlexinetsAuthentication.Core
             services.AddTransient<AdminAuthenticationProvider>();
             services.AddDbContext<FlexinetsContext>(options => options.UseSqlServer(Configuration.GetConnectionString("FlexinetsContext")));
             services.AddSingleton(new SigningCredentialsProvider(GetSigningCredentials()));
-            services.AddScoped<ISmtpClient>(o => new SmtpClient(
-               Configuration["SmtpClient:host"],
-               Convert.ToUInt16(Configuration["SmtpClient:port"]),
-               Configuration["SmtpClient:username"],
-               Configuration["SmtpClient:password"]));
+
+            if (Environment.IsDevelopment())
+            {
+                services.AddScoped<ISmtpClient>(o => new SmtpClientRedirectTest(
+                  Configuration["SmtpClient:host"],
+                  Convert.ToUInt16(Configuration["SmtpClient:port"]),
+                  Configuration["SmtpClient:username"],
+                  Configuration["SmtpClient:password"]));
+            }
+            else
+            {
+                services.AddScoped<ISmtpClient>(o => new SmtpClient(
+                   Configuration["SmtpClient:host"],
+                   Convert.ToUInt16(Configuration["SmtpClient:port"]),
+                   Configuration["SmtpClient:username"],
+                   Configuration["SmtpClient:password"]));
+            }
+
             ConfigureAuthentication(services);
 
             services.AddMvcCore(o => o.Filters.Add(typeof(LogExceptionFilterAttribute))).AddCors().AddJsonFormatters(options => options.ContractResolver = new DefaultContractResolver());
